@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import config from "../config";
 import logger from "../config/logger";
 export const generateSummary = async (
-  userActivities: object
+  userActivities: string
 ): Promise<string | undefined> => {
   const openai = new OpenAI({ apiKey: config.openai.apiKey });
   const prompt = `
@@ -24,7 +24,7 @@ ${JSON.stringify(userActivities, null, 2)}
             - Contribution 1
             - Contribution 2
             
-            Messages:\n${JSON.stringify(userActivities, null, 2)}`,
+            Messages:\n${userActivities}`,
         },
       ],
     });

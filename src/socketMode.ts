@@ -73,72 +73,73 @@ const slackApp = new App({
 });
 
 slackApp.command("/summarize", async ({ ack, body, client }) => {
-    await ack({
-      response_type: "ephemeral",
-      text: ":hourglass: Generating weekly report...",
-    });
-  
-    try {
-      const workspace = await workspaceService.getWorkspace(body.team_id);
-      const botToken = workspace ? workspace.get("botToken") : config.slack.botToken;
-      const slackClient = slackService.getSlackClient(botToken);
-  
-      const oneWeekAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
-      const history = await slackClient.conversations.history({
-        channel: body.channel_id,
-        oldest: oneWeekAgo.toString(),
-        inclusive: true,
-        limit: 1000,
-      });
-  
-      // Step 1: Collect user messages
-      const userActivities: { [user: string]: string[] } = {};
-      const userIds = new Set<string>();
-  
-      history.messages?.forEach((message: any) => {
-        if (message.user && message.text) {
-          if (!userActivities[message.user]) {
-            userActivities[message.user] = [];
-          }
-          userActivities[message.user].push(message.text);
-          userIds.add(message.user); // Collect user IDs
-        }
-      });
-  
-      // Step 2: Fetch user details
-      const userIdToName: { [id: string]: string } = {};
-      for (const userId of userIds) {
-        try {
-          const userInfo = await slackClient.users.info({ user: userId });
-          userIdToName[userId] = userInfo.user?.real_name || userInfo.user?.name || userId;
-        } catch (error) {
-          logger.error(`Failed to fetch user info for ${userId}`, error);
-          userIdToName[userId] = userId; // Fallback to ID if API fails
-        }
-      }
-  
-      // Step 3: Convert userActivities to use real names
-      const userActivitiesWithNames: { [name: string]: string[] } = {};
-      for (const userId in userActivities) {
-        const userName = userIdToName[userId] || userId;
-        userActivitiesWithNames[userName] = userActivities[userId];
-      }
-  
-      // Step 4: Generate and send summary
-      const summary = await openaiService.generateSummary(userActivitiesWithNames);
-      await slackClient.chat.postMessage({
-        channel: body.channel_id,
-        text: `*Weekly Summary:*\n${summary}`,
-      });
-  
-    } catch (error) {
-      logger.error("Error handling /summarize command", error);
-      await client.chat.postMessage({
-        channel: body.channel_id,
-        text: "Error generating summary. Please try again later.",
-      });
-    }
+  await ack({
+    response_type: "ephemeral",
+    text: ":hourglass: Generating weekly report...",
   });
+  try {
+    const workspace = await workspaceService.getWorkspace(body.team_id);
+    console.log(workspace);
+    const botToken = workspace
+      ? workspace.get("botToken")
+      : config.slack.botToken;
+    const slackClient = slackService.getSlackClient(botToken);
+    const oneWeekAgo = Math.floor(Date.now() / 1000) - 7 * 24 * 60 * 60;
+    const oldest = oneWeekAgo.toString();
+    const history = await slackClient.conversations.history({
+      channel: body.channel_id,
+      oldest,
+      inclusive: true,
+      limit: 1000,
+    });
+    const userCache = new Map();
+    const userIds = [
+      ...new Set(
+        history.messages?.filter((msg) => msg.user).map((msg) => msg.user)
+      ),
+    ];
+    const userActivities: { [user: string]: string[] } = {};
+    await Promise.all(
+      userIds.map(async (userId, index) => {
+        await new Promise((resolve) => setTimeout(resolve, index + 100));
+
+        try {
+          const userInfo = await slackApp.client.users.info({ user: userId! });
+          userCache.set(
+            userId,
+            userInfo.user?.real_name || userInfo.user?.name
+          );
+        } catch (error) {
+          userCache.set(userId, `User ${userId?.substring(0, 6)}`);
+        }
+      })
+    );
+
+    history.messages?.forEach((message: (typeof history.messages)[0]) => {
+      if (!message.user || message.subtype || message.bot_id) return;
+      const username = userCache.get(message.user);
+      userActivities[username] = [
+        ...(userActivities[username] || []),
+        ...(message.text || ""),
+      ];
+    });
+    const activityText = Object.entries(userActivities)
+      .map(([user, msg]) => `${user}:\n${msg.join("\n")}`)
+      .join("\n\n");
+    const summary = await openaiService.generateSummary(activityText);
+
+    await slackClient.chat.postMessage({
+      channel: body.channel_id,
+      text: `*Weekly Summary:*\n${summary}`,
+    });
+  } catch (error) {
+    logger.error("Error handling /summarize command", error);
+    await client.chat.postMessage({
+      channel: body.channel_id,
+      text: "Error generating summary. Please try again later.",
+    });
+  }
+});
 
 (async () => {
   await slackApp.start();
