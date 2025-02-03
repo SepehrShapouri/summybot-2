@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.get('/', (req: Request, res: Response) => {
-  const installUrl = `https://slack.com/oauth/v2/authorize?client_id=${config.slack.clientId}&scope=commands,channels:history,chat:write`;
+  const installUrl = `https://slack.com/oauth/v2/authorize?client_id=${config.slack.clientId}&scope=commands,channels:history,chat:write,channels:read,users:read`;
   res.send(`<html>
     <body>
       <h2>Install the Slack App</h2>
