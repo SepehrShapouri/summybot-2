@@ -43,6 +43,7 @@ const slackApp = new App({
         if (!workspace) {
           throw new Error("No matching workspace found");
         }
+        
         const installation: Installation<"v2", false> = {
           team: { id: workspace.get("teamId") },
           enterprise: undefined,
@@ -104,7 +105,7 @@ slackApp.command("/summarize", async ({ ack, body, client }) => {
         await new Promise((resolve) => setTimeout(resolve, index + 100));
 
         try {
-          const userInfo = await slackApp.client.users.info({ user: userId! });
+          const userInfo = await slackClient.users.info({ user: userId! });
           userCache.set(
             userId,
             userInfo.user?.real_name || userInfo.user?.name
