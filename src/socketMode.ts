@@ -65,7 +65,10 @@ installationStore: {
 });
 
 slackApp.command("/summarize", async ({ ack, body, client }) => {
-  await ack();
+    await ack({
+        response_type: "ephemeral",
+        text: ":hourglass: Generating weekly report..."
+        });
   try {
     const workspace = await workspaceService.getWorkspace(body.team_id);
     console.log(workspace);
