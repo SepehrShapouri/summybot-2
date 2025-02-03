@@ -110,6 +110,7 @@ slackApp.command("/summarize", async ({ ack, body, client }) => {
             userInfo.user?.real_name || userInfo.user?.name
           );
         } catch (error) {
+            console.log(error,'error fetching user data')
           userCache.set(userId, `User ${userId?.substring(0, 6)}`);
         }
       })
