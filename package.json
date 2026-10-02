@@ -6,8 +6,7 @@
         "build": "tsc",
         "start": "node dist/server.js",
         "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
-        "migrate": "npx sequelize-cli db:migrate",
-        "preinstall": "node dist/setup.js"
+        "migrate": "npx sequelize-cli db:migrate"
     },
     "dependencies": {
         "@slack/bolt": "^3.12.2",
